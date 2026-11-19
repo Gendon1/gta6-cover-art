@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Vice Bay Cover Maker</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<main class="app">
+  <section class="controls">
+    <div class="brand"><span class="brand-mark">VB</span><div><p class="eyebrow">VICE BAY / COVER STUDIO</p><h1>Cover Maker</h1></div></div>
+    <p class="intro">Turn your moment into a story worth stealing.</p>
+
+    <section class="control-group photo-group" aria-labelledby="photo-label">
+      <h2 id="photo-label">01 / Your photo</h2>
+      <label class="upload-button" for="photo">＋ <span>Upload a photo</span></label>
+      <input id="photo" type="file" accept="image/*">
+      <div class="sample-row" aria-label="Sample photos">
+        <button type="button" class="sample-button" data-sample="boulevard">Boulevard</button>
+        <button type="button" class="sample-button" data-sample="pier">Moonlit Pier</button>
+      </div>
+    </section>
+
+    <label class="field-label" for="caption">02 / Cover title</label>
+    <input id="caption" class="text-input" type="text" maxlength="40" value="Sunset Heist" autocomplete="off">
+
+    <fieldset class="control-group picker">
+      <legend>03 / Layout</legend>
+      <div class="option-grid">
+        <button type="button" data-layout="grid" class="option-button active"><span class="layout-icon grid-icon"></span>Grid</button>
+        <button type="button" data-layout="hero" class="option-button"><span class="layout-icon hero-icon"></span>Hero</button>
+        <button type="button" data-layout="diagonal" class="option-button"><span class="layout-icon diagonal-icon"></span>Split</button>
+        <button type="button" data-layout="solo" class="option-button"><span class="layout-icon solo-icon"></span>Solo</button>
+      </div>
+    </fieldset>
+
+    <fieldset class="control-group picker">
+      <legend>04 / Colour grade</legend>
+      <div class="grade-grid">
+        <button type="button" data-grade="sunset" class="grade-button active"><i class="swatch sunset-swatch"></i>Vice Sunset</button>
+        <button type="button" data-grade="neon" class="grade-button"><i class="swatch neon-swatch"></i>Neon Night</button>
+        <button type="button" data-grade="gold" class="grade-button"><i class="swatch gold-swatch"></i>Palm Gold</button>
+        <button type="button" data-grade="noir" class="grade-button"><i class="swatch noir-swatch"></i>Mono Noir</button>
+      </div>
+    </fieldset>
+
+    <label class="field-label slider-label" for="zoom">05 / Photo zoom <output id="zoom-value">1.0×</output></label>
+    <input id="zoom" type="range" min="1" max="2.5" step="0.01" value="1">
+
+    <label class="field-label" for="size">06 / Export size</label>
+    <select id="size" class="text-input">
+      <option value="1920x1080">1920 × 1080 · Widescreen</option>
+      <option value="1080x1350">1080 × 1350 · Portrait</option>
+      <option value="1080x1080">1080 × 1080 · Square</option>
+    </select>
+    <button id="export" type="button" class="export-button">Export PNG <span>↗</span></button>
+    <p id="status" role="status" aria-live="polite">Choose a sample or upload your own photo.</p>
+  </section>
+  <section class="preview" aria-label="Cover preview">
+    <div class="preview-top"><span>LIVE PREVIEW</span><span class="drag-hint">↔ DRAG TO REFRAME</span></div>
+    <canvas id="cover" width="1920" height="1080" aria-label="The cover preview"></canvas>
+    <div class="preview-caption"><span>VICE BAY ORIGINAL</span><span id="preview-size">1920 × 1080</span></div>
+  </section>
+</main>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
