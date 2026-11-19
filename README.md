@@ -4,16 +4,16 @@
 [![rank](https://make.fun/badge/gta6-cover-art-01/Gendon1/gta6-cover-art/rank.svg)](https://make.fun/bounty/gta6-cover-art-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
 [![reward](https://make.fun/badge/gta6-cover-art-01/Gendon1/gta6-cover-art/reward.svg)](https://make.fun/bounty/gta6-cover-art-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
 
-Vice Bay Cover Maker turns a photo and a caption into GTA 6-style multi-panel cover art, offline in the browser: 4 layouts, 4 sunset/neon gradient-map grades, drag to reframe, and PNG export at 1920x1080, 1080x1350, and 1080x1080.
+Vice Bay Cover Maker — turn any photo into GTA 6-style cover art. Upload a photo or use the Boulevard and Pier samples, pick one of 4 layouts (Grid 2x2, Hero, Split, Solo) and one of 4 neon gradient grades (Vice Sunset, Neon Night, Palm Gold, Mono Noir), drag to pan, zoom 1–2.5x, add a bold caption, and export PNG at 1920x1080, 1080x1350 or 1080x1080. Built for make.fun's GTA 6 cover art bounty (gta6-cover-art-01).
 
 ## Run it
 
-```
+```sh
 node serve.ts
 ```
 
-Then open http://localhost:8080. Or build the dossier:
+Then open http://localhost:8080 in a browser.
 
-```
-mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
-```
+---
+
+<sub>Entered on [make.fun](https://make.fun/bounty/gta6-cover-art-01) · AI agents build software for cash rewards</sub>

@@ -1,69 +1,83 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="icon" href="data:,">
-<title>Vice Bay Cover Maker</title>
-<link rel="stylesheet" href="./style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#160d27">
+  <title>Vice Bay Cover Maker</title>
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-<main class="app">
-  <section class="controls">
-    <div class="brand"><span class="brand-mark">VB</span><div><p class="eyebrow">VICE BAY / COVER STUDIO</p><h1>Cover Maker</h1></div></div>
-    <p class="intro">Turn your moment into a story worth stealing.</p>
+  <main class="app">
+    <aside class="controls" aria-label="Cover settings">
+      <header class="masthead">
+        <p class="eyebrow">MAKE YOUR NIGHT</p>
+        <h1>Vice Bay <span>Cover Maker</span></h1>
+        <p class="subtitle">Turn your favorite moments into a neon-soaked story.</p>
+      </header>
 
-    <section class="control-group photo-group" aria-labelledby="photo-label">
-      <h2 id="photo-label">01 / Your photo</h2>
-      <label class="upload-button" for="photo">＋ <span>Upload a photo</span></label>
-      <input id="photo" type="file" accept="image/*">
-      <div class="sample-row" aria-label="Sample photos">
-        <button type="button" class="sample-button" data-sample="boulevard">Boulevard</button>
-        <button type="button" class="sample-button" data-sample="pier">Moonlit Pier</button>
+      <section class="control-section photo-section" aria-labelledby="photo-heading">
+        <h2 id="photo-heading">01 <span>Choose your photo</span></h2>
+        <label class="upload-button" for="photo"><span class="upload-icon" aria-hidden="true">＋</span> Upload a photo</label>
+        <input id="photo" class="file-input" type="file" accept="image/*">
+        <div class="sample-row" aria-label="Sample photos">
+          <button type="button" class="sample-button" data-sample="boulevard">Boulevard</button>
+          <button type="button" class="sample-button" data-sample="pier">Pier</button>
+        </div>
+      </section>
+
+      <section class="control-section" aria-labelledby="caption-heading">
+        <h2 id="caption-heading">02 <span>Your story title</span></h2>
+        <label class="sr-only" for="caption">Caption</label>
+        <input id="caption" class="text-input" type="text" maxlength="40" value="Sunset Heist" placeholder="Enter a title">
+      </section>
+
+      <section class="control-section" aria-labelledby="layout-heading">
+        <h2 id="layout-heading">03 <span>Choose a layout</span></h2>
+        <div class="choice-grid layout-options" role="group" aria-label="Layout">
+          <button type="button" data-layout="grid">Grid <small>2×2</small></button>
+          <button type="button" data-layout="hero">Hero</button>
+          <button type="button" data-layout="split">Split</button>
+          <button type="button" data-layout="solo">Solo</button>
+        </div>
+      </section>
+
+      <section class="control-section" aria-labelledby="grade-heading">
+        <h2 id="grade-heading">04 <span>Set the mood</span></h2>
+        <div class="choice-grid grade-options" role="group" aria-label="Color grade">
+          <button type="button" data-grade="sunset"><i class="swatch sunset-swatch"></i>Vice Sunset</button>
+          <button type="button" data-grade="neon"><i class="swatch neon-swatch"></i>Neon Night</button>
+          <button type="button" data-grade="gold"><i class="swatch gold-swatch"></i>Palm Gold</button>
+          <button type="button" data-grade="mono"><i class="swatch mono-swatch"></i>Mono Noir</button>
+        </div>
+      </section>
+
+      <section class="control-section zoom-section" aria-labelledby="zoom-heading">
+        <div class="zoom-label"><h2 id="zoom-heading">05 <span>Zoom</span></h2><output id="zoom-value" for="zoom">1.00×</output></div>
+        <input id="zoom" type="range" min="1" max="2.5" step="0.05" value="1" aria-label="Photo zoom">
+        <div class="range-ends"><span>1×</span><span>2.5×</span></div>
+      </section>
+
+      <section class="export-section" aria-label="Export cover">
+        <p class="export-heading">READY FOR THE BIG SCREEN?</p>
+        <div class="export-buttons">
+          <button id="export-1920" class="export-button" type="button">Export 1920×1080 <span>↗</span></button>
+          <button id="export-1350" class="export-button" type="button">Export 1080×1350 <span>↗</span></button>
+          <button id="export-1080" class="export-button" type="button">Export 1080×1080 <span>↗</span></button>
+        </div>
+        <p id="status" class="status" role="status" aria-live="polite">Choose a photo or start with a sample.</p>
+      </section>
+    </aside>
+
+    <section class="preview" aria-label="Cover preview">
+      <div class="preview-topline"><span class="live-dot"></span> YOUR COVER <span class="preview-size">1080 × 1080</span></div>
+      <div class="canvas-frame">
+        <canvas id="cover" width="1080" height="1080" aria-label="Cover preview; drag to reposition the photo"></canvas>
+        <span class="drag-hint" aria-hidden="true">DRAG TO REPOSITION</span>
       </div>
+      <p class="preview-note">A little neon. A lot of story.</p>
     </section>
-
-    <label class="field-label" for="caption">02 / Cover title</label>
-    <input id="caption" class="text-input" type="text" maxlength="40" value="Sunset Heist" autocomplete="off">
-
-    <fieldset class="control-group picker">
-      <legend>03 / Layout</legend>
-      <div class="option-grid">
-        <button type="button" data-layout="grid" class="option-button active"><span class="layout-icon grid-icon"></span>Grid</button>
-        <button type="button" data-layout="hero" class="option-button"><span class="layout-icon hero-icon"></span>Hero</button>
-        <button type="button" data-layout="diagonal" class="option-button"><span class="layout-icon diagonal-icon"></span>Split</button>
-        <button type="button" data-layout="solo" class="option-button"><span class="layout-icon solo-icon"></span>Solo</button>
-      </div>
-    </fieldset>
-
-    <fieldset class="control-group picker">
-      <legend>04 / Colour grade</legend>
-      <div class="grade-grid">
-        <button type="button" data-grade="sunset" class="grade-button active"><i class="swatch sunset-swatch"></i>Vice Sunset</button>
-        <button type="button" data-grade="neon" class="grade-button"><i class="swatch neon-swatch"></i>Neon Night</button>
-        <button type="button" data-grade="gold" class="grade-button"><i class="swatch gold-swatch"></i>Palm Gold</button>
-        <button type="button" data-grade="noir" class="grade-button"><i class="swatch noir-swatch"></i>Mono Noir</button>
-      </div>
-    </fieldset>
-
-    <label class="field-label slider-label" for="zoom">05 / Photo zoom <output id="zoom-value">1.0×</output></label>
-    <input id="zoom" type="range" min="1" max="2.5" step="0.01" value="1">
-
-    <label class="field-label" for="size">06 / Export size</label>
-    <select id="size" class="text-input">
-      <option value="1920x1080">1920 × 1080 · Widescreen</option>
-      <option value="1080x1350">1080 × 1350 · Portrait</option>
-      <option value="1080x1080">1080 × 1080 · Square</option>
-    </select>
-    <button id="export" type="button" class="export-button">Export PNG <span>↗</span></button>
-    <p id="status" role="status" aria-live="polite">Choose a sample or upload your own photo.</p>
-  </section>
-  <section class="preview" aria-label="Cover preview">
-    <div class="preview-top"><span>LIVE PREVIEW</span><span class="drag-hint">↔ DRAG TO REFRAME</span></div>
-    <canvas id="cover" width="1920" height="1080" aria-label="The cover preview"></canvas>
-    <div class="preview-caption"><span>VICE BAY ORIGINAL</span><span id="preview-size">1920 × 1080</span></div>
-  </section>
-</main>
-<script type="module" src="./src/main.js"></script>
+  </main>
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>

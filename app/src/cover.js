@@ -1,206 +1,277 @@
-const GRADES = {
-  sunset: { stops: [[0, '#180d35'], [0.52, '#f07835'], [1, '#ff4e9a']], accent: '#ff4e9a', overlay: ['rgba(255,111,54,0.18)', 'rgba(222,42,147,0.18)'], tint: 'rgba(52,34,92,0.08)' },
-  neon: { stops: [[0, '#080d1b'], [0.52, '#d51a94'], [1, '#51f2ed']], accent: '#55f5ef', overlay: ['rgba(238,18,153,0.16)', 'rgba(26,228,232,0.2)'], tint: 'rgba(19,14,50,0.08)' },
-  gold: { stops: [[0, '#27140e'], [0.5, '#b46a22'], [1, '#ffe5a0']], accent: '#f4be59', overlay: ['rgba(234,151,42,0.14)', 'rgba(255,219,129,0.12)'], tint: 'rgba(55,28,10,0.06)' },
-  noir: { stops: [[0, '#08090d'], [0.5, '#777a82'], [1, '#f4f4f2']], accent: '#b8e7ee', overlay: ['rgba(37,68,91,0.15)', 'rgba(180,219,226,0.08)'], tint: 'rgba(48,95,116,0.1)' },
-};
+const freezeStops = (stops) => Object.freeze(stops.map((stop) => Object.freeze(stop)));
 
-const PANEL_FOCUS = {
-  hero: [
-    { ox: 0, oy: 0.38, zoom: 1.1 },
-    { ox: 0.2, oy: 0.36, zoom: 1.8 },
-    { ox: -0.45, oy: -0.4, zoom: 1.8 },
-    { ox: 0.55, oy: -0.35, zoom: 1.8 },
-  ],
-  grid: [
-    { ox: 0, oy: 0.72, zoom: 1.15 },
-    { ox: 0.06, oy: 0.82, zoom: 1.6 },
-    { ox: 0.15, oy: -0.75, zoom: 1.3 },
-    { ox: -0.15, oy: 0.85, zoom: 1.3 },
-  ],
-  diagonal: [
-    { ox: 0, oy: 0.3, zoom: 1.2 },
-    { ox: -0.08, oy: 0, zoom: 1.0 },
-  ],
-  solo: [
-    { ox: 0, oy: 0.12, zoom: 1.05 },
-  ],
-};
+export const GRADES = Object.freeze({
+  sunset: Object.freeze({
+    name: 'Vice Sunset',
+    lut: freezeStops([
+      [0, 18, 12, 43],
+      [0.28, 72, 28, 91],
+      [0.55, 193, 58, 79],
+      [0.78, 244, 126, 68],
+      [1, 255, 229, 166],
+    ]),
+  }),
+  neon: Object.freeze({
+    name: 'Neon Night',
+    lut: freezeStops([
+      [0, 5, 10, 25],
+      [0.3, 22, 35, 83],
+      [0.56, 179, 31, 137],
+      [0.8, 40, 196, 218],
+      [1, 206, 255, 255],
+    ]),
+  }),
+  gold: Object.freeze({
+    name: 'Palm Gold',
+    lut: freezeStops([
+      [0, 39, 25, 15],
+      [0.32, 105, 61, 29],
+      [0.58, 190, 119, 43],
+      [0.82, 239, 193, 112],
+      [1, 255, 245, 213],
+    ]),
+  }),
+  mono: Object.freeze({
+    name: 'Mono Noir',
+    lut: freezeStops([
+      [0, 0, 0, 0],
+      [1, 255, 255, 255],
+    ]),
+  }),
+});
 
-let gradeSource = null;
-let gradeImage = null;
-let gradeKey = '';
+// Every panel rectangle is [left, top, width, height] in output-canvas fractions.
+export const LAYOUTS = Object.freeze({
+  grid: Object.freeze([
+    Object.freeze({ rect: [0, 0, 0.5, 0.5] }),
+    Object.freeze({ rect: [0.5, 0, 0.5, 0.5] }),
+    Object.freeze({ rect: [0, 0.5, 0.5, 0.5] }),
+    Object.freeze({ rect: [0.5, 0.5, 0.5, 0.5] }),
+  ]),
+  hero: Object.freeze([
+    Object.freeze({ rect: [0, 0, 1, 1 / 3] }),
+    Object.freeze({ rect: [0, 1 / 3, 1, 1 / 3] }),
+    Object.freeze({ rect: [0, 2 / 3, 1, 1 / 3] }),
+  ]),
+  split: Object.freeze([
+    Object.freeze({ rect: [0, 0, 1, 1], clip: 'upper' }),
+    Object.freeze({ rect: [0, 0, 1, 1], clip: 'lower' }),
+  ]),
+  solo: Object.freeze([Object.freeze({ rect: [0, 0, 1, 1] })]),
+});
 
-function makeGraded(photo, gradeName) {
-  if (gradeSource === photo && gradeKey === gradeName && gradeImage) return gradeImage;
-  const w = photo.naturalWidth || photo.width;
-  const h = photo.naturalHeight || photo.height;
-  const source = document.createElement('canvas');
-  source.width = w;
-  source.height = h;
-  const sourceCtx = source.getContext('2d', { willReadFrequently: true });
-  sourceCtx.drawImage(photo, 0, 0, w, h);
-  const pixels = sourceCtx.getImageData(0, 0, w, h);
-  const palette = document.createElement('canvas');
-  palette.width = 256;
-  palette.height = 1;
-  const paletteCtx = palette.getContext('2d');
-  const gradient = paletteCtx.createLinearGradient(0, 0, 256, 0);
-  for (const [stop, color] of GRADES[gradeName].stops) gradient.addColorStop(stop, color);
-  paletteCtx.fillStyle = gradient;
-  paletteCtx.fillRect(0, 0, 256, 1);
-  const colors = paletteCtx.getImageData(0, 0, 256, 1).data;
-  const data = pixels.data;
-  for (let i = 0; i < data.length; i += 4) {
-    const luminance = Math.min(255, Math.round(data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722)) * 4;
-    data[i] = colors[luminance];
-    data[i + 1] = colors[luminance + 1];
-    data[i + 2] = colors[luminance + 2];
+// focus selects a normalized photo point; xOffset keeps the grid's paired face crops distinct.
+export const PANEL_FOCUS = Object.freeze({
+  grid: Object.freeze([
+    Object.freeze({ focus: 'face', zoom: 1.4, xOffset: -0.08 }),
+    Object.freeze({ focus: 'face', zoom: 1.4, xOffset: 0.08 }),
+    Object.freeze({ focus: 'detail', zoom: 1 }),
+    Object.freeze({ focus: 'scene', zoom: 1 }),
+  ]),
+  hero: Object.freeze([
+    Object.freeze({ focus: 'face', zoom: 1.6 }),
+    Object.freeze({ focus: 'detail', zoom: 1.3 }),
+    Object.freeze({ focus: 'scene', zoom: 1 }),
+  ]),
+  split: Object.freeze([
+    Object.freeze({ focus: 'face', zoom: 1.4 }),
+    Object.freeze({ focus: 'detail', zoom: 1 }),
+  ]),
+  solo: Object.freeze([Object.freeze({ focus: 'face', zoom: 1.2 })]),
+});
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const coordinate = (value, fallback) => value == null || !Number.isFinite(Number(value)) ? fallback : clamp(Number(value), 0, 1);
+
+function makeOffscreenCanvas(canvas, width, height) {
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(width, height);
+  const doc = canvas.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  if (!doc) throw new Error('A document or OffscreenCanvas implementation is required');
+  const offscreen = doc.createElement('canvas');
+  offscreen.width = width;
+  offscreen.height = height;
+  return offscreen;
+}
+
+function getPhotoSize(photo) {
+  return {
+    width: photo.naturalWidth || photo.videoWidth || photo.width,
+    height: photo.naturalHeight || photo.videoHeight || photo.height,
+  };
+}
+
+function mapLuminance(value, lut) {
+  for (let i = 1; i < lut.length; i += 1) {
+    const left = lut[i - 1];
+    const right = lut[i];
+    if (value <= right[0]) {
+      const amount = (value - left[0]) / (right[0] - left[0]);
+      return [
+        left[1] + (right[1] - left[1]) * amount,
+        left[2] + (right[2] - left[2]) * amount,
+        left[3] + (right[3] - left[3]) * amount,
+      ];
+    }
   }
-  sourceCtx.putImageData(pixels, 0, 0);
-  gradeSource = photo;
-  gradeKey = gradeName;
-  gradeImage = source;
-  return source;
+  const last = lut[lut.length - 1];
+  return [last[1], last[2], last[3]];
 }
 
-function panelPaths(layout, w, h, gutter) {
-  const g = gutter;
-  if (layout === 'hero') return [
-    [[0, 0], [w, 0], [w, h * 0.62 - g / 2], [0, h * 0.62 - g / 2]],
-    [[0, h * 0.62 + g / 2], [w / 3 - g, h * 0.62 + g / 2], [w / 3 - g, h], [0, h]],
-    [[w / 3, h * 0.62 + g / 2], [2 * w / 3 - g / 2, h * 0.62 + g / 2], [2 * w / 3 - g / 2, h], [w / 3, h]],
-    [[2 * w / 3 + g / 2, h * 0.62 + g / 2], [w, h * 0.62 + g / 2], [w, h], [2 * w / 3 + g / 2, h]],
-  ];
-  if (layout === 'diagonal') return [
-    [[0, 0], [w * 0.62 - g / 2, 0], [w * 0.38 - g / 2, h], [0, h]],
-    [[w * 0.62 + g / 2, 0], [w, 0], [w, h], [w * 0.38 + g / 2, h]],
-  ];
-  if (layout === 'solo') return [[[0, 0], [w, 0], [w, h], [0, h]]];
-  return [
-    [[0, 0], [w / 2 - g / 2, 0], [w / 2 - g / 2, h / 2 - g / 2], [0, h / 2 - g / 2]],
-    [[w / 2 + g / 2, 0], [w, 0], [w, h / 2 - g / 2], [w / 2 + g / 2, h / 2 - g / 2]],
-    [[0, h / 2 + g / 2], [w / 2 - g / 2, h / 2 + g / 2], [w / 2 - g / 2, h], [0, h]],
-    [[w / 2 + g / 2, h / 2 + g / 2], [w, h / 2 + g / 2], [w, h], [w / 2 + g / 2, h]],
-  ];
+function applyGrade(ctx, width, height, grade) {
+  const image = ctx.getImageData(0, 0, width, height);
+  const pixels = image.data;
+  for (let i = 0; i < pixels.length; i += 4) {
+    if (pixels[i + 3] === 0) continue;
+    const luminance = (0.2126 * pixels[i] + 0.7152 * pixels[i + 1] + 0.0722 * pixels[i + 2]) / 255;
+    const color = mapLuminance(luminance, grade.lut);
+    pixels[i] = color[0];
+    pixels[i + 1] = color[1];
+    pixels[i + 2] = color[2];
+  }
+  ctx.putImageData(image, 0, 0);
 }
 
-function pathFromPoints(ctx, points) {
+function getFocusPoint(instruction, focus) {
+  if (instruction.focus === 'face') return focus.face;
+  if (instruction.focus === 'detail') return focus.detail;
+  return { x: 0.5, y: 0.5 };
+}
+
+function clipPanel(ctx, panel, x, y, width, height) {
+  if (!panel.clip) return;
   ctx.beginPath();
-  points.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
-  ctx.closePath();
-}
-
-function drawPanel(ctx, image, points, index, w, h, state, palette, gutter) {
-  pathFromPoints(ctx, points);
-  ctx.save();
-  ctx.clip();
-  const xs = points.map((p) => p[0]);
-  const ys = points.map((p) => p[1]);
-  const x = Math.min(...xs), y = Math.min(...ys);
-  const pw = Math.max(...xs) - x, ph = Math.max(...ys) - y;
-  if (image) {
-    const focus = PANEL_FOCUS[state.layout]?.[index] || { ox: 0, oy: 0, zoom: 1 };
-    const base = Math.max(pw / image.width, ph / image.height) * state.zoom * focus.zoom;
-    const iw = image.width * base, ih = image.height * base;
-    const cx = Math.max(x + pw - iw, Math.min(x, x + (pw - iw) / 2 + (state.panX + focus.ox * pw) * state.zoom));
-    const cy = Math.max(y + ph - ih, Math.min(y, y + (ph - ih) / 2 + (state.panY + focus.oy * ph) * state.zoom));
-    ctx.drawImage(image, cx, cy, iw, ih);
+  if (panel.clip === 'upper') {
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + width, y);
+    ctx.lineTo(x, y + height);
   } else {
-    const placeholder = ctx.createLinearGradient(x, y, x + pw, y + ph);
-    placeholder.addColorStop(0, '#40294e');
-    placeholder.addColorStop(1, '#bd4c77');
-    ctx.fillStyle = placeholder;
-    ctx.fillRect(x, y, pw, ph);
+    ctx.moveTo(x + width, y);
+    ctx.lineTo(x + width, y + height);
+    ctx.lineTo(x, y + height);
   }
-  const grade = GRADES[state.grade] || GRADES.sunset;
-  const tint = ctx.createLinearGradient(x, y, x + pw, y + ph);
-  tint.addColorStop(0, grade.overlay[0]);
-  tint.addColorStop(1, grade.overlay[1]);
-  ctx.fillStyle = tint;
-  ctx.fillRect(x, y, pw, ph);
-  ctx.fillStyle = grade.tint;
-  ctx.fillRect(x, y, pw, ph);
-  const vignette = ctx.createRadialGradient(x + pw * 0.5, y + ph * 0.42, Math.min(pw, ph) * 0.16, x + pw * 0.5, y + ph * 0.5, Math.max(pw, ph) * 0.76);
-  vignette.addColorStop(0, 'rgba(0,0,0,0)');
-  vignette.addColorStop(1, 'rgba(0,0,0,0.35)');
-  ctx.fillStyle = vignette;
-  ctx.fillRect(x, y, pw, ph);
-  const topLight = ctx.createLinearGradient(0, y, 0, y + ph * 0.55);
-  topLight.addColorStop(0, 'rgba(255,226,204,0.1)');
-  topLight.addColorStop(1, 'rgba(255,226,204,0)');
-  ctx.fillStyle = topLight;
-  ctx.fillRect(x, y, pw, ph * 0.6);
-  ctx.restore();
+  ctx.closePath();
+  ctx.clip();
+}
+
+function drawPhotoPanel(ctx, photo, photoWidth, photoHeight, panel, instruction, canvasWidth, canvasHeight, opts, focus) {
+  const [left, top, panelWidth, panelHeight] = panel.rect;
+  const x = left * canvasWidth;
+  const y = top * canvasHeight;
+  const width = panelWidth * canvasWidth;
+  const height = panelHeight * canvasHeight;
+  const coverScale = Math.max(width / photoWidth, height / photoHeight);
+  const zoom = clamp((Number(opts.zoom) || 1) * instruction.zoom, 1, 8);
+  const sourceWidth = width / (coverScale * zoom);
+  const sourceHeight = height / (coverScale * zoom);
+  const point = getFocusPoint(instruction, focus);
+  const pan = opts.pan || {};
+  const centerX = point.x * photoWidth + (instruction.xOffset || 0) * sourceWidth + (Number(pan.x) || 0) * sourceWidth / 2;
+  const centerY = point.y * photoHeight + (Number(pan.y) || 0) * sourceHeight / 2;
+  const sourceX = clamp(centerX - sourceWidth / 2, 0, photoWidth - sourceWidth);
+  const sourceY = clamp(centerY - sourceHeight / 2, 0, photoHeight - sourceHeight);
+
   ctx.save();
-  pathFromPoints(ctx, points);
-  ctx.lineWidth = Math.max(1, gutter * 0.25);
-  ctx.strokeStyle = 'rgba(15,10,19,0.75)';
-  ctx.stroke();
+  clipPanel(ctx, panel, x, y, width, height);
+  ctx.drawImage(photo, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
   ctx.restore();
 }
 
-function drawTitle(ctx, w, h, state, grade) {
-  const solo = state.layout === 'solo';
-  const bandTop = solo ? h * 0.67 : h * 0.73;
-  const band = ctx.createLinearGradient(0, bandTop - h * 0.1, 0, h);
-  band.addColorStop(0, 'rgba(7,5,12,0)');
-  band.addColorStop(0.22, 'rgba(7,5,12,0.72)');
-  band.addColorStop(1, 'rgba(7,5,12,0.94)');
-  ctx.fillStyle = band;
-  ctx.fillRect(0, bandTop - h * 0.1, w, h - bandTop + h * 0.1);
-  const caption = (state.caption || 'VICE BAY').trim().toLocaleUpperCase();
-  if (!caption) return;
-  const words = caption.split(/\s+/);
-  const lineLimit = w * 0.9;
-  let lines = [caption];
-  if (words.length === 2 && caption.length >= 15) lines = words;
-  const maxSize = Math.min(h * (solo ? 0.13 : 0.115), w * 0.105);
-  let size = maxSize;
-  const font = () => { ctx.font = `900 condensed ${size}px "Arial Narrow", "Helvetica Neue", Arial, sans-serif`; };
-  font();
-  while (size > 18 && Math.max(...lines.map((line) => ctx.measureText(line).width)) > lineLimit) { size -= 2; font(); }
-  const lineHeight = size * 0.84;
-  const taglineSize = Math.max(11, size * 0.14);
-  const titleHeight = lineHeight * lines.length;
-  const titleY = h - h * 0.105 - taglineSize * 1.9 - titleHeight;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = Math.max(3, size / 10);
-  ctx.strokeStyle = '#08060b';
-  ctx.fillStyle = '#fff';
-  for (let i = 0; i < lines.length; i++) {
-    const y = titleY + i * lineHeight;
-    ctx.save();
-    ctx.shadowColor = grade.accent;
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = size * 0.055;
-    ctx.shadowOffsetY = size * 0.055;
-    ctx.strokeText(lines[i], w / 2, y, lineLimit);
-    ctx.fillText(lines[i], w / 2, y, lineLimit);
-    ctx.restore();
-  }
-  ctx.fillStyle = grade.accent;
-  ctx.fillRect(w * 0.06, titleY - h * 0.028, w * 0.12, Math.max(3, h * 0.004));
-  ctx.font = `700 ${taglineSize}px "Helvetica Neue", Arial, sans-serif`;
-  ctx.fillStyle = '#fff';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillText('A VICE BAY STORY', w / 2, h - h * 0.045);
+function drawBackground(ctx, width, height) {
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, '#101020');
+  gradient.addColorStop(0.55, '#24172d');
+  gradient.addColorStop(1, '#080b14');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
 }
 
-/** Draws a graded, multi-panel Vice Bay cover using the canvas's current dimensions. */
-export function drawCover(canvas, photo, state = {}) {
+function drawCaption(ctx, width, height, caption) {
+  const text = String(caption || '').trim().toUpperCase();
+  const labelSize = Math.max(11, height * 0.025);
+  const captionY = height * 0.91;
+  const labelY = text ? captionY - height * 0.105 : height * 0.91;
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fff';
+  ctx.font = `700 ${labelSize}px Arial, sans-serif`;
+  ctx.letterSpacing = `${Math.max(1, labelSize * 0.18)}px`;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+  ctx.shadowBlur = labelSize * 0.5;
+  ctx.fillText('A VICE BAY STORY', width / 2, labelY);
+
+  if (text) {
+    const family = '"Arial Narrow", "Liberation Sans Narrow", sans-serif';
+    let size = height * 0.105;
+    ctx.letterSpacing = '0px';
+    ctx.font = `900 ${size}px ${family}`;
+    while (ctx.measureText(text).width > width * 0.92 && size > 10) {
+      size *= 0.94;
+      ctx.font = `900 ${size}px ${family}`;
+    }
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(3, size * 0.1);
+    ctx.strokeStyle = 'rgba(12, 9, 20, 0.95)';
+    ctx.shadowBlur = size * 0.25;
+    ctx.strokeText(text, width / 2, captionY);
+    ctx.fillText(text, width / 2, captionY);
+  }
+  ctx.restore();
+}
+
+export function drawCover(canvas, photo, opts = {}) {
   const ctx = canvas.getContext('2d');
-  const { width: w, height: h } = canvas;
-  const options = { caption: 'Sunset Heist', layout: 'grid', grade: 'sunset', zoom: 1, panX: 0, panY: 0, ...state };
-  const gradeName = GRADES[options.grade] ? options.grade : 'sunset';
-  options.grade = gradeName;
-  ctx.fillStyle = '#17111d';
-  ctx.fillRect(0, 0, w, h);
-  const gutter = Math.max(5, 8 * Math.min(w / 1080, h / 1080));
-  const image = photo ? makeGraded(photo, gradeName) : null;
-  const panels = panelPaths(options.layout, w, h, gutter);
-  panels.forEach((points, index) => drawPanel(ctx, image, points, index, w, h, options, GRADES[gradeName], gutter));
-  drawTitle(ctx, w, h, options, GRADES[gradeName]);
+  if (!ctx) throw new Error('Canvas 2D context is unavailable');
+  const width = canvas.width;
+  const height = canvas.height;
+  const layoutName = LAYOUTS[opts.layout] ? opts.layout : 'solo';
+  const grade = GRADES[opts.grade] || GRADES.sunset;
+
+  drawBackground(ctx, width, height);
+  if (photo) {
+    const { width: photoWidth, height: photoHeight } = getPhotoSize(photo);
+    if (photoWidth > 0 && photoHeight > 0) {
+      const photoCanvas = makeOffscreenCanvas(canvas, width, height);
+      const photoCtx = photoCanvas.getContext('2d', { willReadFrequently: true });
+      const focus = opts.focus || {};
+      const normalizedFocus = {
+        face: {
+          x: coordinate(focus.face && focus.face.x, 0.5),
+          y: coordinate(focus.face && focus.face.y, 0.4),
+        },
+        detail: {
+          x: coordinate(focus.detail && focus.detail.x, 0.5),
+          y: coordinate(focus.detail && focus.detail.y, 0.6),
+        },
+      };
+      LAYOUTS[layoutName].forEach((panel, index) => {
+        drawPhotoPanel(
+          photoCtx,
+          photo,
+          photoWidth,
+          photoHeight,
+          panel,
+          PANEL_FOCUS[layoutName][index],
+          width,
+          height,
+          opts,
+          normalizedFocus,
+        );
+      });
+      applyGrade(photoCtx, width, height, grade);
+      ctx.drawImage(photoCanvas, 0, 0);
+    }
+  }
+  drawCaption(ctx, width, height, opts.caption);
+  return canvas;
+}
+
+export function exportCover(photo, opts, width, height) {
+  const doc = typeof document !== 'undefined' ? document : null;
+  if (!doc) throw new Error('A document is required to create an export canvas');
+  const canvas = doc.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  return drawCover(canvas, photo, opts || {});
 }

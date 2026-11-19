@@ -1,135 +1,216 @@
-import { drawCover } from './cover.js';
+import { drawCover, exportCover, GRADES, LAYOUTS } from './cover.js';
 import { runShot } from './shots.js';
 
 const canvas = document.getElementById('cover');
-const caption = document.getElementById('caption');
+const photoInput = document.getElementById('photo');
+const captionInput = document.getElementById('caption');
 const status = document.getElementById('status');
-const sizePicker = document.getElementById('size');
-const zoomPicker = document.getElementById('zoom');
+const zoomInput = document.getElementById('zoom');
 const zoomValue = document.getElementById('zoom-value');
-const state = { caption: caption.value, layout: 'grid', grade: 'sunset', zoom: 1, panX: 0, panY: 0 };
+
+const FOCUS = {
+  boulevard: { face: { x: 0.55, y: 0.18 }, detail: { x: 0.25, y: 0.75 } },
+  pier: { face: { x: 0.38, y: 0.18 }, detail: { x: 0.78, y: 0.72 } },
+};
+const uploadedFocus = { face: { x: 0.5, y: 0.4 }, detail: { x: 0.5, y: 0.6 } };
+
 let photo = null;
-let pointerOrigin = null;
+let caption = captionInput.value;
+let layout = 'hero';
+let grade = 'sunset';
+let zoom = 1;
+let pan = { x: 0, y: 0 };
+let focus = uploadedFocus;
+let dragging = null;
 
-function redraw() {
-  state.caption = caption.value;
-  drawCover(canvas, photo, state);
-}
-
+/** Load an image URL and resolve once it is ready to draw. */
 export function loadImage(url) {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Could not load ${url}`));
-    img.src = url;
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`Could not load image: ${url}`));
+    image.src = url;
   });
 }
 
-function setPhoto(image, name) {
-  photo = image;
-  state.panX = 0;
-  state.panY = 0;
-  redraw();
-  if (name) status.textContent = `${name} loaded. Drag the preview to reframe.`;
+function options() {
+  return { caption, layout, grade, zoom, pan, focus };
 }
 
-function setSize(value) {
-  const [width, height] = value.split('x').map(Number);
-  canvas.width = width;
-  canvas.height = height;
-  document.getElementById('preview-size').textContent = `${width} × ${height}`;
-  document.getElementById('export').innerHTML = `Export PNG <span>↗</span>`;
-  redraw();
+function redraw() {
+  drawCover(canvas, photo, options());
 }
 
-document.getElementById('photo').addEventListener('change', async (event) => {
-  const file = event.target.files?.[0];
+function updateActiveButtons() {
+  document.querySelectorAll('[data-layout]').forEach((button) => {
+    const active = button.dataset.layout === layout;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  document.querySelectorAll('[data-grade]').forEach((button) => {
+    const active = button.dataset.grade === grade;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+}
+
+function updatePublicState() {
+  window.__coverState = { layout, grade };
+}
+
+function updateZoomLabel() {
+  zoomValue.value = `${zoom.toFixed(2)}×`;
+  zoomValue.textContent = `${zoom.toFixed(2)}×`;
+}
+
+async function loadSample(name) {
+  try {
+    photo = await loadImage(`samples/${name}.jpg`);
+    focus = FOCUS[name] || uploadedFocus;
+    pan = { x: 0, y: 0 };
+    redraw();
+    status.textContent = `${name === 'boulevard' ? 'Boulevard' : 'Pier'} sample loaded.`;
+  } catch (error) {
+    status.textContent = `Unable to load the ${name} sample.`;
+    console.error(error);
+  }
+}
+
+async function loadUploadedPhoto(file) {
   if (!file) return;
+  const objectUrl = URL.createObjectURL(file);
   try {
-    setPhoto(await loadImage(URL.createObjectURL(file)), file.name);
-  } catch {
-    status.textContent = 'That photo could not be opened. Try another image.';
+    photo = await loadImage(objectUrl);
+    focus = uploadedFocus;
+    pan = { x: 0, y: 0 };
+    status.textContent = `${file.name} loaded.`;
+    redraw();
+  } catch (error) {
+    status.textContent = 'Unable to load that image.';
+    console.error(error);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
   }
-});
+}
 
-document.querySelectorAll('[data-sample]').forEach((button) => button.addEventListener('click', async () => {
+function exportPng(width, height) {
+  const filename = `cover-${width}x${height}.png`;
+  let output;
   try {
-    setPhoto(await loadImage(`samples/${button.dataset.sample}.jpg`), `${button.textContent} sample`);
-  } catch {
-    status.textContent = 'Could not load the sample photo.';
+    output = exportCover(photo, options(), width, height);
+  } catch (error) {
+    status.textContent = 'Could not render the cover export.';
+    console.error(error);
+    return;
   }
-}));
-
-caption.addEventListener('input', redraw);
-document.querySelectorAll('[data-layout]').forEach((button) => button.addEventListener('click', () => {
-  state.layout = button.dataset.layout;
-  document.querySelectorAll('[data-layout]').forEach((item) => item.classList.toggle('active', item === button));
-  redraw();
-}));
-document.querySelectorAll('[data-grade]').forEach((button) => button.addEventListener('click', () => {
-  state.grade = button.dataset.grade;
-  document.body.dataset.grade = state.grade;
-  document.querySelectorAll('[data-grade]').forEach((item) => item.classList.toggle('active', item === button));
-  redraw();
-}));
-zoomPicker.addEventListener('input', () => {
-  state.zoom = Number(zoomPicker.value);
-  zoomValue.value = `${state.zoom.toFixed(1)}×`;
-  zoomValue.textContent = zoomValue.value;
-  redraw();
-});
-sizePicker.addEventListener('change', () => setSize(sizePicker.value));
-
-canvas.addEventListener('pointerdown', (event) => {
-  pointerOrigin = { x: event.clientX, y: event.clientY, panX: state.panX, panY: state.panY };
-  canvas.setPointerCapture(event.pointerId);
-  canvas.classList.add('dragging');
-});
-canvas.addEventListener('pointermove', (event) => {
-  if (!pointerOrigin) return;
-  const bounds = canvas.getBoundingClientRect();
-  state.panX = pointerOrigin.panX + (event.clientX - pointerOrigin.x) * canvas.width / bounds.width;
-  state.panY = pointerOrigin.panY + (event.clientY - pointerOrigin.y) * canvas.height / bounds.height;
-  redraw();
-});
-const stopDrag = () => { pointerOrigin = null; canvas.classList.remove('dragging'); };
-canvas.addEventListener('pointerup', stopDrag);
-canvas.addEventListener('pointercancel', stopDrag);
-
-document.getElementById('export').addEventListener('click', () => {
-  canvas.toBlob((blob) => {
+  output.toBlob((blob) => {
     if (!blob) {
-      status.textContent = 'PNG export failed. Please try again.';
+      status.textContent = 'Could not create the PNG export.';
       return;
     }
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `vice-bay-${canvas.width}x${canvas.height}.png`;
+    anchor.download = filename;
     anchor.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    status.textContent = `Saved vice-bay-${canvas.width}x${canvas.height}.png`;
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    status.textContent = `Saved ${filename}`;
   }, 'image/png');
-});
+}
 
-const query = new URLSearchParams(location.search);
-const shot = query.get('shot');
+photoInput.addEventListener('change', (event) => loadUploadedPhoto(event.target.files[0]));
+captionInput.addEventListener('input', () => {
+  caption = captionInput.value;
+  redraw();
+});
+document.querySelectorAll('[data-sample]').forEach((button) => {
+  button.addEventListener('click', () => loadSample(button.dataset.sample));
+});
+document.querySelectorAll('[data-layout]').forEach((button) => {
+  button.addEventListener('click', () => {
+    layout = button.dataset.layout;
+    updateActiveButtons();
+    updatePublicState();
+    redraw();
+  });
+});
+document.querySelectorAll('[data-grade]').forEach((button) => {
+  button.addEventListener('click', () => {
+    grade = button.dataset.grade;
+    updateActiveButtons();
+    updatePublicState();
+    redraw();
+  });
+});
+zoomInput.addEventListener('input', () => {
+  zoom = Number(zoomInput.value);
+  updateZoomLabel();
+  redraw();
+});
+document.getElementById('export-1920').addEventListener('click', () => exportPng(1920, 1080));
+document.getElementById('export-1350').addEventListener('click', () => exportPng(1080, 1350));
+document.getElementById('export-1080').addEventListener('click', () => exportPng(1080, 1080));
+
+canvas.addEventListener('pointerdown', (event) => {
+  if (!photo) return;
+  dragging = { id: event.pointerId, x: event.clientX, y: event.clientY };
+  canvas.setPointerCapture(event.pointerId);
+});
+canvas.addEventListener('pointermove', (event) => {
+  if (!dragging || dragging.id !== event.pointerId) return;
+  const bounds = canvas.getBoundingClientRect();
+  const dx = (event.clientX - dragging.x) / Math.max(1, bounds.width);
+  const dy = (event.clientY - dragging.y) / Math.max(1, bounds.height);
+  pan = {
+    x: Math.max(-1, Math.min(1, pan.x - (dx * 2) / zoom)),
+    y: Math.max(-1, Math.min(1, pan.y - (dy * 2) / zoom)),
+  };
+  dragging.x = event.clientX;
+  dragging.y = event.clientY;
+  redraw();
+});
+function stopDragging(event) {
+  if (dragging && dragging.id === event.pointerId) dragging = null;
+}
+canvas.addEventListener('pointerup', stopDragging);
+canvas.addEventListener('pointercancel', stopDragging);
+canvas.addEventListener('lostpointercapture', stopDragging);
+
+updatePublicState();
+window.__applyShot = async ({ photo: sample = 'pier', caption: text = 'Sunset Heist', layout: nextLayout = 'hero', grade: nextGrade = 'sunset' } = {}) => {
+  const sampleName = String(sample).replace(/\.jpg$/i, '').split('/').pop();
+  const knownLayout = Object.hasOwn(LAYOUTS, nextLayout) ? nextLayout : 'hero';
+  const knownGrade = Object.hasOwn(GRADES, nextGrade) ? nextGrade : 'sunset';
+  try {
+    photo = await loadImage(`samples/${sampleName}.jpg`);
+    focus = FOCUS[sampleName] || uploadedFocus;
+    caption = String(text).slice(0, 40);
+    captionInput.value = caption;
+    layout = knownLayout;
+    grade = knownGrade;
+    pan = { x: 0, y: 0 };
+    updateActiveButtons();
+    redraw();
+    updatePublicState();
+  } catch (error) {
+    status.textContent = `Unable to load the ${sampleName} sample.`;
+    console.error(error);
+  }
+};
+
+const shot = new URLSearchParams(location.search).get('shot');
 if (shot) {
-  runShot(shot, query, async (sample, text, options = {}) => {
-    setPhoto(await loadImage(sample), 'Shot photo');
-    caption.value = text;
-    state.caption = text;
-    if (options.layout) state.layout = options.layout;
-    if (options.grade) state.grade = options.grade;
-    if (options.layout) document.querySelectorAll('[data-layout]').forEach((button) => button.classList.toggle('active', button.dataset.layout === state.layout));
-    if (options.grade) {
-      document.body.dataset.grade = state.grade;
-      document.querySelectorAll('[data-grade]').forEach((button) => button.classList.toggle('active', button.dataset.grade === state.grade));
-    }
-    setSize(shot === 'cover' ? '1080x1080' : '1920x1080');
+  runShot(shot, new URLSearchParams(location.search), async (sample, text) => {
+    const sampleName = String(sample).split('/').pop().replace(/\.jpg$/i, '');
+    photo = await loadImage(sample);
+    focus = FOCUS[sampleName] || uploadedFocus;
+    caption = String(text).slice(0, 40);
+    captionInput.value = caption;
     redraw();
   });
 } else {
-  setSize(sizePicker.value);
-  loadImage('samples/pier.jpg').then((image) => setPhoto(image, 'Moonlit Pier sample')).catch(() => redraw());
+  redraw();
 }
+
+updateActiveButtons();
+updateZoomLabel();
